@@ -107,6 +107,7 @@ public class RaidManager implements IRaiderManager
      * Difficulty nbt tag
      */
     private static final String TAG_RAID_DIFFICULTY = "difficulty";
+    private static final String TAG_RAID_DELAY = "delay";
     private static final String TAG_LOST_CITIZENS   = "lostCitizens";
 
     /**
@@ -213,6 +214,11 @@ public class RaidManager implements IRaiderManager
      * Passing through raid timer.
      */
     private long passingThroughRaidTime = 0;
+
+    /**
+     * Delays the next raid by additional days
+     */
+    private int extraDaysToNextRaid = 0;
 
     /**
      * Creates the RaidManager for a colony.
@@ -740,6 +746,7 @@ public class RaidManager implements IRaiderManager
                     if (lostPct > LOST_CITIZEN_DIFF_REDUCE_PCT)
                     {
                         raidDifficulty = Math.max(MIN_RAID_DIFFICULTY, raidDifficulty - (int) (lostPct / LOST_CITIZEN_DIFF_REDUCE_PCT));
+                        extraDaysToNextRaid = Mth.ceil(MineColonies.getConfig().getServer().averageNumberOfNightsBetweenRaids.get() * 0.4);
                     }
                     else if (lostPct < LOST_CITIZEN_DIFF_INCREASE_PCT)
                     {
@@ -761,6 +768,7 @@ public class RaidManager implements IRaiderManager
             RaidSpawnResult result = raiderEvent(nextForcedType, overrideConfig, allowShips);
             if (result == RaidSpawnResult.SUCCESS || result == RaidSpawnResult.TOO_SMALL)
             {
+                extraDaysToNextRaid = 0;
                 raidTonight = false;
                 nextForcedType = INITIAL_NEXT_RAID_TYPE;
             }
@@ -854,7 +862,7 @@ public class RaidManager implements IRaiderManager
      */
     private boolean raidThisNight(final Level world, final IColony colony)
     {
-        if (nightsSinceLastRaid < MineColonies.getConfig().getServer().minimumNumberOfNightsBetweenRaids.get())
+        if (nightsSinceLastRaid < MineColonies.getConfig().getServer().minimumNumberOfNightsBetweenRaids.get() + extraDaysToNextRaid)
         {
             return false;
         }
@@ -970,6 +978,7 @@ public class RaidManager implements IRaiderManager
         compound.putBoolean(TAG_RAIDABLE, canHaveRaiderEvents());
         compound.putInt(TAG_NIGHTS_SINCE_LAST_RAID, getNightsSinceLastRaid());
         compound.putInt(TAG_RAID_DIFFICULTY, raidDifficulty);
+        compound.putInt(TAG_RAID_DELAY, extraDaysToNextRaid);
 
         ListTag nbtList = new ListTag();
         for (final RaidHistory history : raidHistories)
@@ -994,6 +1003,11 @@ public class RaidManager implements IRaiderManager
         if (compound.contains(TAG_NIGHTS_SINCE_LAST_RAID))
         {
             setNightsSinceLastRaid(compound.getInt(TAG_NIGHTS_SINCE_LAST_RAID));
+        }
+
+        if (compound.contains(TAG_RAID_DELAY))
+        {
+            extraDaysToNextRaid = compound.getInt(TAG_RAID_DELAY);
         }
 
         raidDifficulty = Mth.clamp(compound.getInt(TAG_RAID_DIFFICULTY), MIN_RAID_DIFFICULTY, MAX_RAID_DIFFICULTY);
@@ -1044,6 +1058,7 @@ public class RaidManager implements IRaiderManager
         if (((double) raidHistories.get(0).lostCitizens / colony.getCitizenManager().getMaxCitizens()) > 0.5)
         {
             MessageUtils.format(RAID_END_MERCY, colony.getName()).sendTo(colony).forManagers();
+            extraDaysToNextRaid = MineColonies.getConfig().getServer().averageNumberOfNightsBetweenRaids.get() * 2;
         }
         else
         {
