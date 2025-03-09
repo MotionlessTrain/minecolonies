@@ -340,17 +340,15 @@ public class WindowBannerPicker extends Screen
         Lighting.setupForFlatItems();
 
         List<BannerPatternLayers.Layer> list = new ArrayList<>();
-        list.add(new Pair<>(BuiltInRegistries.BANNER_PATTERN.getHolder(BannerPatterns.BASE).get(), DyeColor.GRAY));
         list.add(new BannerPatternLayers.Layer(Utils.getRegistryValue(BannerPatterns.BASE, colony.getWorld()), DyeColor.GRAY));
         if (!isFeatureUnlocked.get() && pattern.unwrapKey().get().location().getNamespace().equals(Constants.MOD_ID))
         {
-            list.add(new Pair<>(pattern, DyeColor.BLACK));
+            list.add(new BannerPatternLayers.Layer(pattern, DyeColor.BLACK));
         }
         else
         {
-            list.add(new Pair<>(pattern, DyeColor.WHITE));
+            list.add(new BannerPatternLayers.Layer(pattern, DyeColor.WHITE));
         }
-
 
         PoseStack transform = new PoseStack();
         transform.pushPose();
